@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Block Blast</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,7 +11,13 @@
         <div class="game-container">
             <header>
                 <h1>BLOCK BLAST</h1>
-                <button id="themeSwitch" class="theme-btn">🌙 Тёмная</button>
+                <div class="theme-buttons">
+                    <button id="themeLight" class="theme-btn" title="Розовая">🌸</button>
+                    <button id="themeDark" class="theme-btn" title="Фиолетовая">🌙</button>
+                    <button id="themeCoffeeDark" class="theme-btn" title="Тёмный кофе">☕️</button>
+                    <button id="themeCoffeeLight" class="theme-btn" title="Латте">🥛</button>
+                    <button id="themeSky" class="theme-btn" title="Небо">☁️</button>
+                </div>
             </header>
             
             <div class="score-container">
@@ -31,7 +37,7 @@
                 <div class="blocks-panel">
                     <h3>Следующие</h3>
                     <div id="nextBlocks" class="blocks-container"></div>
-                    <button id="newGameBtn" class="control-btn">✨ Новая игра</button>
+                    <button id="newGameBtn" class="control-btn">Новая игра</button>
                 </div>
             </div>
         </div>
