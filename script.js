@@ -1,480 +1,952 @@
-class BlockBlastGame {
-    constructor() {
-        this.gridSize = 8;
-        this.grid = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(0));
-        this.score = 0;
-        this.highScore = localStorage.getItem('blockBlastHighScore') || 0;
-        this.blocks = [];
-        this.draggedIndex = null;
-        this.isDragging = false;
-        this.isAnimating = false;
-        
-        this.init();
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    user-select: none;
+    touch-action: manipulation;
+}
+
+body {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    position: relative;
+    overflow-x: hidden;
+    transition: background 0.5s ease;
+}
+
+/* ████████ ОБЩИЕ СТИЛИ ДЛЯ ВСЕХ ТЕМ ████████ */
+
+.game-wrapper {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    position: relative;
+    z-index: 2;
+}
+
+.game-container {
+    max-width: 950px;
+    width: fit-content;
+    padding: 35px;
+    border-radius: 60px;
+    position: relative;
+    z-index: 3;
+    backdrop-filter: blur(15px);
+    transition: all 0.5s ease;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.theme-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.theme-btn {
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 100px;
+    backdrop-filter: blur(8px);
+    cursor: pointer;
+    font-size: 20px;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-btn:hover {
+    transform: scale(1.1);
+}
+
+h1 {
+    font-size: 36px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    transition: text-shadow 0.3s ease;
+}
+
+.score-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.score-box {
+    flex: 1;
+    padding: 20px 25px;
+    border-radius: 40px;
+    text-align: center;
+    backdrop-filter: blur(8px);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.score-box:hover {
+    transform: translateY(-2px);
+}
+
+.score-label {
+    font-size: 13px;
+    letter-spacing: 1px;
+    margin-bottom: 5px;
+    display: block;
+    transition: text-shadow 0.3s ease;
+}
+
+.score-value {
+    font-size: 42px;
+    font-weight: 800;
+    line-height: 1;
+    transition: text-shadow 0.3s ease;
+}
+
+.game-area {
+    display: flex;
+    gap: 30px;
+    align-items: flex-start;
+}
+
+.game-grid {
+    display: grid;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 4px;
+    padding: 10px;
+    border-radius: 32px;
+    width: 380px;
+    height: 380px;
+}
+
+.cell {
+    aspect-ratio: 1;
+    border-radius: 12px;
+    transition: transform 0.2s ease-out, background 0.3s ease, box-shadow 0.3s ease;
+}
+
+.blocks-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 170px;
+}
+
+.blocks-panel h3 {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-align: center;
+    margin-bottom: 5px;
+    transition: text-shadow 0.3s ease;
+}
+
+.blocks-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+}
+
+.block-preview {
+    display: grid;
+    grid-template-columns: repeat(4, 35px);
+    grid-template-rows: repeat(4, 35px);
+    gap: 2px;
+    cursor: grab;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin: 0;
+    width: fit-content;
+    transition: transform 0.2s ease;
+}
+
+.block-preview:active {
+    cursor: grabbing;
+    transform: scale(0.98);
+}
+
+.block-preview .cell {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.control-btn {
+    padding: 15px 25px;
+    border-radius: 100px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 50px;
+    width: 100%;
+    border: none;
+}
+
+.control-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* Подсветка при перетаскивании */
+.cell.drop-valid {
+    box-shadow: 0 0 15px !important;
+}
+
+.cell.drop-invalid {
+    box-shadow: 0 0 15px !important;
+}
+
+/* Перетаскиваемый блок */
+.draggable-block {
+    position: fixed;
+    display: grid;
+    grid-template-columns: repeat(4, 35px);
+    grid-template-rows: repeat(4, 35px);
+    gap: 2px;
+    padding: 0;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 1000;
+}
+
+.draggable-block.hidden {
+    display: none;
+}
+
+.draggable-block .cell {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    background: transparent !important;
+    box-shadow: none !important;
+}
+
+.draggable-block.dragging {
+    animation: gentleFloat 1.5s ease-in-out infinite;
+}
+
+@keyframes gentleFloat {
+    0% {
+        transform: translate(-50%, -50%) scale(1);
     }
-
-    init() {
-        this.generateBlocks();
-        this.updateHighScore();
-        this.setupEventListeners();
-        this.render();
+    50% {
+        transform: translate(-50%, -52%) scale(1.02);
     }
-
-    generateBlocks() {
-        const shapes = [
-            [[1]],
-            [[1,1]],
-            [[1],[1]],
-            [[1,1,1]],
-            [[1],[1],[1]],
-            [[1,1],[1,1]],
-            [[1,1,1,1]],
-            [[1,1,1],[1,0,0]],
-            [[1,1,1],[0,0,1]],
-            [[1,1],[1,0],[1,0]],
-            [[1,1,1],[0,1,0]],
-        ];
-
-        this.blocks = [];
-        for (let i = 0; i < 3; i++) {
-            const shape = JSON.parse(JSON.stringify(shapes[Math.floor(Math.random() * shapes.length)]));
-            this.blocks.push({ shape });
-        }
-    }
-
-    canPlace(block, row, col) {
-        for (let r = 0; r < block.shape.length; r++) {
-            for (let c = 0; c < block.shape[0].length; c++) {
-                if (block.shape[r][c]) {
-                    const newRow = row + r;
-                    const newCol = col + c;
-                    if (newRow >= this.gridSize || newCol >= this.gridSize || 
-                        newRow < 0 || newCol < 0 || this.grid[newRow][newCol]) {
-                        return false;
-                    }
-                }
-            }
-        }
-        return true;
-    }
-
-    placeBlock(block, row, col) {
-        // Размещаем блок в данных
-        for (let r = 0; r < block.shape.length; r++) {
-            for (let c = 0; c < block.shape[0].length; c++) {
-                if (block.shape[r][c]) {
-                    this.grid[row + r][col + c] = 1;
-                }
-            }
-        }
-        
-        // Сразу обновляем отображение поля
-        this.renderGrid();
-        
-        // Анимация появления
-        this.animateBlockPlacement(row, col, block);
-        
-        // Удаляем использованный блок
-        this.blocks.splice(this.draggedIndex, 1);
-        
-        // Обновляем отображение блоков справа
-        this.renderBlocks();
-        
-        // Если блоков меньше 3, генерируем новые и обновляем отображение
-        if (this.blocks.length < 3) {
-            this.generateBlocks();
-            this.renderBlocks();
-        }
-        
-        // Очищаем линии с анимацией и обновляем счёт
-        this.clearLinesWithAnimation();
-        
-        this.draggedIndex = null;
-        this.isDragging = false;
-        this.hideDraggable();
-        
-        if (this.checkGameOver()) {
-            setTimeout(() => alert('Игра окончена!'), 700);
-        }
-    }
-
-    animateBlockPlacement(row, col, block) {
-        for (let r = 0; r < block.shape.length; r++) {
-            for (let c = 0; c < block.shape[0].length; c++) {
-                if (block.shape[r][c]) {
-                    const cell = document.querySelector(`[data-row="${row + r}"][data-col="${col + c}"]`);
-                    if (cell) {
-                        cell.style.transform = 'scale(0)';
-                        cell.style.transition = 'transform 0.2s ease-out';
-                        setTimeout(() => {
-                            cell.style.transform = 'scale(1)';
-                        }, 10);
-                    }
-                }
-            }
-        }
-    }
-
-    async clearLinesWithAnimation() {
-        const linesToClear = [];
-        
-        // Находим линии для очистки
-        for (let r = 0; r < this.gridSize; r++) {
-            if (this.grid[r].every(cell => cell === 1)) {
-                linesToClear.push({ type: 'row', index: r });
-            }
-        }
-        
-        for (let c = 0; c < this.gridSize; c++) {
-            let full = true;
-            for (let r = 0; r < this.gridSize; r++) {
-                if (!this.grid[r][c]) {
-                    full = false;
-                    break;
-                }
-            }
-            if (full) {
-                linesToClear.push({ type: 'col', index: c });
-            }
-        }
-        
-        if (linesToClear.length === 0) {
-            return;
-        }
-
-        // Пульсация поля
-        document.querySelector('.game-grid').classList.add('pulse');
-        setTimeout(() => {
-            document.querySelector('.game-grid').classList.remove('pulse');
-        }, 300);
-
-        // Собираем ячейки для анимации
-        const cellsToAnimate = [];
-        
-        linesToClear.forEach(line => {
-            if (line.type === 'row') {
-                for (let c = 0; c < this.gridSize; c++) {
-                    const cell = document.querySelector(`[data-row="${line.index}"][data-col="${c}"]`);
-                    if (cell && cell.classList.contains('filled')) {
-                        cellsToAnimate.push(cell);
-                    }
-                }
-            } else {
-                for (let r = 0; r < this.gridSize; r++) {
-                    const cell = document.querySelector(`[data-row="${r}"][data-col="${line.index}"]`);
-                    if (cell && cell.classList.contains('filled')) {
-                        cellsToAnimate.push(cell);
-                    }
-                }
-            }
-        });
-
-        this.isAnimating = true;
-        
-        // Анимируем исчезновение
-        cellsToAnimate.forEach((cell, i) => {
-            setTimeout(() => {
-                if (cell && cell.classList.contains('filled')) {
-                    if (i % 2 === 0) {
-                        cell.classList.add('vanishing');
-                    } else {
-                        cell.classList.add('flash');
-                    }
-                }
-            }, i * 30);
-        });
-
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Очищаем линии в данных
-        linesToClear.forEach(line => {
-            if (line.type === 'row') {
-                this.grid[line.index].fill(0);
-            } else {
-                for (let r = 0; r < this.gridSize; r++) {
-                    this.grid[r][line.index] = 0;
-                }
-            }
-        });
-
-        // Обновляем счёт
-        const linesCount = linesToClear.length;
-        this.score += linesCount * 100;
-        document.getElementById('score').textContent = this.score;
-        this.updateHighScore();
-        
-        const scoreElement = document.getElementById('score');
-        scoreElement.classList.add('pop');
-        setTimeout(() => scoreElement.classList.remove('pop'), 300);
-
-        // Перерисовываем сетку
-        this.renderGrid();
-        this.isAnimating = false;
-    }
-
-    renderGrid() {
-        const gridEl = document.getElementById('gameGrid');
-        const cells = gridEl.children;
-        
-        for (let i = 0; i < cells.length; i++) {
-            const cell = cells[i];
-            const row = parseInt(cell.dataset.row);
-            const col = parseInt(cell.dataset.col);
-            
-            if (this.grid[row][col]) {
-                cell.classList.add('filled');
-            } else {
-                cell.classList.remove('filled');
-            }
-            cell.classList.remove('vanishing', 'flash');
-        }
-    }
-
-    renderBlocks() {
-        const blocksEl = document.getElementById('nextBlocks');
-        blocksEl.innerHTML = '';
-        
-        this.blocks.forEach((block, index) => {
-            const blockEl = document.createElement('div');
-            blockEl.className = 'block-preview';
-            blockEl.dataset.index = index;
-            
-            for (let r = 0; r < 4; r++) {
-                for (let c = 0; c < 4; c++) {
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    
-                    if (r < block.shape.length && c < block.shape[0].length && block.shape[r][c]) {
-                        cell.classList.add('filled');
-                    }
-                    
-                    blockEl.appendChild(cell);
-                }
-            }
-            
-            blocksEl.appendChild(blockEl);
-        });
-        
-        // Анимация появления новых блоков
-        setTimeout(() => {
-            document.querySelectorAll('.block-preview').forEach(el => {
-                el.classList.add('new');
-                setTimeout(() => el.classList.remove('new'), 300);
-            });
-        }, 100);
-    }
-
-    updateHighScore() {
-        if (this.score > this.highScore) {
-            this.highScore = this.score;
-            localStorage.setItem('blockBlastHighScore', this.highScore);
-            
-            const highScoreElement = document.getElementById('highScore');
-            highScoreElement.classList.add('pop');
-            setTimeout(() => highScoreElement.classList.remove('pop'), 300);
-        }
-        document.getElementById('highScore').textContent = this.highScore;
-    }
-
-    checkGameOver() {
-        for (let b of this.blocks) {
-            for (let r = 0; r <= this.gridSize - b.shape.length; r++) {
-                for (let c = 0; c <= this.gridSize - b.shape[0].length; c++) {
-                    if (this.canPlace(b, r, c)) return false;
-                }
-            }
-        }
-        return true;
-    }
-
-    setupEventListeners() {
-        document.getElementById('themeSwitch').onclick = () => this.toggleTheme();
-        document.getElementById('newGameBtn').onclick = () => this.newGame();
-        
-        document.getElementById('nextBlocks').addEventListener('mousedown', (e) => this.startDrag(e));
-        document.addEventListener('mousemove', (e) => this.onDrag(e));
-        document.addEventListener('mouseup', (e) => this.stopDrag(e));
-        document.getElementById('gameGrid').addEventListener('mouseover', (e) => this.onGridHover(e));
-        document.getElementById('gameGrid').addEventListener('mouseout', () => this.clearHighlights());
-    }
-
-    startDrag(e) {
-        if (this.isAnimating) return;
-        
-        const blockEl = e.target.closest('.block-preview');
-        if (!blockEl) return;
-        
-        const index = parseInt(blockEl.dataset.index);
-        if (isNaN(index)) return;
-        
-        e.preventDefault();
-        this.draggedIndex = index;
-        this.isDragging = true;
-        this.showDraggable(this.blocks[index], e.clientX, e.clientY);
-    }
-
-    onDrag(e) {
-        if (!this.isDragging) return;
-        this.updateDraggablePosition(e.clientX, e.clientY);
-        
-        const draggable = document.getElementById('draggableBlock');
-        draggable.classList.add('dragging');
-        
-        const gridRect = document.getElementById('gameGrid').getBoundingClientRect();
-        if (e.clientX >= gridRect.left && e.clientX <= gridRect.right && 
-            e.clientY >= gridRect.top && e.clientY <= gridRect.bottom) {
-            
-            const cellSize = gridRect.width / this.gridSize;
-            const col = Math.floor((e.clientX - gridRect.left) / cellSize);
-            const row = Math.floor((e.clientY - gridRect.top) / cellSize);
-            
-            if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
-                const block = this.blocks[this.draggedIndex];
-                const valid = this.canPlace(block, row, col);
-                this.highlightCells(row, col, block, valid);
-            }
-        } else {
-            this.clearHighlights();
-        }
-    }
-
-    stopDrag(e) {
-        if (!this.isDragging || this.draggedIndex === null) return;
-        
-        document.getElementById('draggableBlock').classList.remove('dragging');
-        
-        const gridRect = document.getElementById('gameGrid').getBoundingClientRect();
-        if (e.clientX >= gridRect.left && e.clientX <= gridRect.right && 
-            e.clientY >= gridRect.top && e.clientY <= gridRect.bottom) {
-            
-            const cellSize = gridRect.width / this.gridSize;
-            const col = Math.floor((e.clientX - gridRect.left) / cellSize);
-            const row = Math.floor((e.clientY - gridRect.top) / cellSize);
-            
-            if (row >= 0 && row < this.gridSize && col >= 0 && col < this.gridSize) {
-                const block = this.blocks[this.draggedIndex];
-                if (this.canPlace(block, row, col)) {
-                    this.placeBlock(block, row, col);
-                }
-            }
-        }
-        
-        this.isDragging = false;
-        this.draggedIndex = null;
-        this.hideDraggable();
-        this.clearHighlights();
-    }
-
-    onGridHover(e) {
-        if (!this.isDragging || this.draggedIndex === null) return;
-        
-        const cell = e.target.closest('.cell');
-        if (!cell) return;
-        
-        const row = parseInt(cell.dataset.row);
-        const col = parseInt(cell.dataset.col);
-        const block = this.blocks[this.draggedIndex];
-        const valid = this.canPlace(block, row, col);
-        this.highlightCells(row, col, block, valid);
-    }
-
-    highlightCells(startRow, startCol, block, valid) {
-        this.clearHighlights();
-        
-        for (let r = 0; r < block.shape.length; r++) {
-            for (let c = 0; c < block.shape[0].length; c++) {
-                if (block.shape[r][c]) {
-                    const row = startRow + r;
-                    const col = startCol + c;
-                    if (row < this.gridSize && col < this.gridSize) {
-                        const cell = document.querySelector(`[data-row="${row}"][data-col="${col}"]`);
-                        if (cell && !cell.classList.contains('filled')) {
-                            cell.classList.add(valid ? 'drop-valid' : 'drop-invalid');
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    clearHighlights() {
-        document.querySelectorAll('.cell').forEach(cell => {
-            cell.classList.remove('drop-valid', 'drop-invalid');
-        });
-    }
-
-    showDraggable(block, x, y) {
-        const el = document.getElementById('draggableBlock');
-        el.innerHTML = '';
-        el.classList.remove('hidden');
-        
-        for (let r = 0; r < 4; r++) {
-            for (let c = 0; c < 4; c++) {
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                
-                if (r < block.shape.length && c < block.shape[0].length && block.shape[r][c]) {
-                    cell.classList.add('filled');
-                }
-                
-                el.appendChild(cell);
-            }
-        }
-        
-        this.updateDraggablePosition(x, y);
-    }
-
-    updateDraggablePosition(x, y) {
-        const el = document.getElementById('draggableBlock');
-        el.style.left = x + 'px';
-        el.style.top = y + 'px';
-    }
-
-    hideDraggable() {
-        document.getElementById('draggableBlock').classList.add('hidden');
-    }
-
-    toggleTheme() {
-        document.body.classList.toggle('dark-theme');
-        document.body.classList.toggle('light-theme');
-        const btn = document.getElementById('themeSwitch');
-        btn.textContent = document.body.classList.contains('dark-theme') ? '☀️ Светлая' : '🌙 Тёмная';
-    }
-
-    newGame() {
-        this.grid = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(0));
-        this.score = 0;
-        this.blocks = [];
-        this.generateBlocks();
-        this.draggedIndex = null;
-        this.isDragging = false;
-        this.hideDraggable();
-        this.clearHighlights();
-        this.updateHighScore();
-        document.getElementById('score').textContent = this.score;
-        this.render();
-    }
-
-    render() {
-        // Полностью пересоздаём сетку
-        const gridEl = document.getElementById('gameGrid');
-        gridEl.innerHTML = '';
-        for (let r = 0; r < this.gridSize; r++) {
-            for (let c = 0; c < this.gridSize; c++) {
-                const cell = document.createElement('div');
-                cell.className = `cell ${this.grid[r][c] ? 'filled' : ''}`;
-                cell.dataset.row = r;
-                cell.dataset.col = c;
-                gridEl.appendChild(cell);
-            }
-        }
-        
-        // Рендерим блоки
-        this.renderBlocks();
-        
-        // Обновляем счёт
-        document.getElementById('score').textContent = this.score;
-        document.getElementById('highScore').textContent = this.highScore;
+    100% {
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
-new BlockBlastGame();
+/* Анимации игры */
+@keyframes vanish {
+    0% { transform: scale(1); opacity: 1; }
+    30% { transform: scale(1.1); opacity: 0.8; }
+    70% { transform: scale(0.9); opacity: 0.3; }
+    100% { transform: scale(0); opacity: 0; }
+}
+
+.cell.vanishing {
+    animation: vanish 0.4s ease-out forwards;
+    pointer-events: none;
+}
+
+@keyframes gentleFlash {
+    0% { transform: scale(1); opacity: 1; }
+    25% { transform: scale(1.15); opacity: 0.9; filter: brightness(1.2); }
+    50% { transform: scale(1.05); opacity: 0.6; }
+    75% { transform: scale(0.9); opacity: 0.3; }
+    100% { transform: scale(0); opacity: 0; }
+}
+
+.cell.flash {
+    animation: gentleFlash 0.35s ease-in forwards;
+    pointer-events: none;
+}
+
+@keyframes scorePop {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.score-value.pop {
+    animation: scorePop 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    0% { transform: translateY(-15px); opacity: 0; }
+    100% { transform: translateY(0); opacity: 1; }
+}
+
+.block-preview.new {
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes gentlePulse {
+    0% { filter: brightness(1); }
+    50% { filter: brightness(1.05); }
+    100% { filter: brightness(1); }
+}
+
+.game-grid.pulse {
+    animation: gentlePulse 0.3s ease-out;
+}
+
+/* ████████ СВЕТЛАЯ РОЗОВАЯ ТЕМА ████████ */
+body.light-theme {
+    background: linear-gradient(125deg, #f5cad8, #fad0de, #ffd6e3, #fad0de, #f5cad8);
+    background-size: 500% 500%;
+    animation: softWaves 18s ease infinite;
+}
+
+@keyframes softWaves {
+    0% { background-position: 0% 20%; }
+    20% { background-position: 20% 80%; }
+    40% { background-position: 50% 30%; }
+    60% { background-position: 80% 70%; }
+    80% { background-position: 30% 90%; }
+    100% { background-position: 0% 20%; }
+}
+
+body.light-theme .game-container {
+    background: rgba(250, 235, 240, 0.7);
+    box-shadow: 0 20px 40px rgba(120, 80, 100, 0.2);
+}
+
+body.light-theme h1 {
+    color: #6d4e5f;
+    text-shadow: 2px 2px 4px rgba(80, 50, 60, 0.2), 0 0 10px rgba(180, 130, 150, 0.3);
+}
+
+body.light-theme .theme-btn {
+    background: rgba(245, 200, 215, 0.8);
+    color: #5a4050;
+    box-shadow: 0 4px 8px rgba(80, 50, 60, 0.15);
+}
+
+body.light-theme .score-box {
+    background: rgba(245, 200, 215, 0.8);
+    box-shadow: 0 8px 18px -8px rgba(140, 90, 110, 0.25);
+}
+
+body.light-theme .score-label {
+    color: #6d4e5f;
+    text-shadow: 1px 1px 2px rgba(80, 50, 60, 0.15);
+}
+
+body.light-theme .score-value {
+    color: #4d3645;
+    text-shadow: 2px 2px 4px rgba(60, 40, 50, 0.2), 0 0 8px rgba(160, 110, 130, 0.2);
+}
+
+body.light-theme .game-grid {
+    background: rgba(225, 195, 210, 0.3);
+}
+
+body.light-theme .cell {
+    background: #f5dae5;
+    box-shadow: 0 2px 4px rgba(100, 60, 80, 0.12);
+}
+
+body.light-theme .cell.filled {
+    background: #8a6a7b;
+    box-shadow: 0 4px 8px rgba(80, 55, 70, 0.3);
+}
+
+body.light-theme h3 {
+    color: #6d4e5f;
+    text-shadow: 1px 1px 2px rgba(80, 50, 60, 0.15);
+}
+
+body.light-theme .block-preview .cell.filled {
+    background: #8a6a7b !important;
+    box-shadow: 0 4px 8px rgba(70, 45, 60, 0.3) !important;
+}
+
+body.light-theme .control-btn {
+    background: rgba(245, 200, 215, 0.8);
+    color: #5a4050;
+    box-shadow: 0 4px 10px rgba(140, 90, 110, 0.15);
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+body.light-theme .control-btn:hover {
+    background: rgba(235, 190, 205, 0.9);
+    box-shadow: 0 8px 20px -6px rgba(140, 90, 110, 0.3);
+}
+
+/* ████████ ТЁМНАЯ ФИОЛЕТОВАЯ ТЕМА ████████ */
+body.dark-theme {
+    background: linear-gradient(145deg, #040020, #070025, #0a002a, #070025, #040020);
+    background-size: 500% 500%;
+    animation: darkWaves 22s ease infinite;
+}
+
+@keyframes darkWaves {
+    0% { background-position: 0% 20%; }
+    20% { background-position: 30% 80%; }
+    40% { background-position: 70% 40%; }
+    60% { background-position: 90% 70%; }
+    80% { background-position: 40% 90%; }
+    100% { background-position: 0% 20%; }
+}
+
+body.dark-theme .game-container {
+    background: rgba(4, 0, 25, 0.65);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+}
+
+body.dark-theme h1 {
+    color: #c9a5e6;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5), 0 0 15px rgba(170, 100, 220, 0.4);
+}
+
+body.dark-theme .theme-btn {
+    background: rgba(10, 5, 38, 0.6);
+    color: #c9a5e6;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .score-box {
+    background: rgba(7, 3, 32, 0.6);
+    box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .score-label {
+    color: #a58bc0;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .score-value {
+    color: #d9b5f5;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5), 0 0 10px rgba(170, 100, 220, 0.3);
+}
+
+body.dark-theme .game-grid {
+    background: rgba(4, 0, 28, 0.5);
+}
+
+body.dark-theme .cell {
+    background: rgba(12, 5, 48, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .cell.filled {
+    background: #6a4a9a;
+    box-shadow: 0 4px 12px rgba(90, 40, 160, 0.4);
+}
+
+body.dark-theme h3 {
+    color: #a58bc0;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+body.dark-theme .block-preview .cell.filled {
+    background: #6a4a9a !important;
+    box-shadow: 0 4px 8px rgba(50, 25, 100, 0.3) !important;
+}
+
+body.dark-theme .control-btn {
+    background: rgba(8, 4, 36, 0.7);
+    color: #c9a5e6;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-theme .control-btn:hover {
+    background: rgba(18, 8, 48, 0.8);
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.7);
+}
+
+/* ████████ ТЁМНО-КОФЕЙНАЯ ТЕМА ☕️ ████████ */
+body.coffee-dark-theme {
+    background: linear-gradient(145deg, #2c1e16, #36261e, #402e24, #36261e, #2c1e16);
+    background-size: 500% 500%;
+    animation: coffeeDarkWaves 20s ease infinite;
+}
+
+@keyframes coffeeDarkWaves {
+    0% { background-position: 0% 20%; }
+    20% { background-position: 30% 80%; }
+    40% { background-position: 70% 40%; }
+    60% { background-position: 90% 70%; }
+    80% { background-position: 40% 90%; }
+    100% { background-position: 0% 20%; }
+}
+
+body.coffee-dark-theme .game-container {
+    background: rgba(30, 20, 15, 0.75);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+}
+
+body.coffee-dark-theme h1 {
+    color: #d4b8a5;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4), 0 0 12px rgba(180, 140, 110, 0.3);
+}
+
+body.coffee-dark-theme .theme-btn {
+    background: rgba(55, 40, 30, 0.7);
+    color: #d4b8a5;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+body.coffee-dark-theme .score-box {
+    background: rgba(50, 35, 25, 0.7);
+    box-shadow: 0 8px 18px -8px rgba(0, 0, 0, 0.5);
+}
+
+body.coffee-dark-theme .score-label {
+    color: #c4a592;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.coffee-dark-theme .score-value {
+    color: #e8d2c0;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4), 0 0 10px rgba(180, 140, 110, 0.25);
+}
+
+body.coffee-dark-theme .game-grid {
+    background: rgba(40, 28, 20, 0.5);
+}
+
+body.coffee-dark-theme .cell {
+    background: rgba(60, 45, 35, 0.8);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+body.coffee-dark-theme .cell.filled {
+    background: #7e5e4b;
+    box-shadow: 0 4px 12px rgba(70, 45, 35, 0.4);
+}
+
+body.coffee-dark-theme h3 {
+    color: #c4a592;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+body.coffee-dark-theme .block-preview .cell.filled {
+    background: #7e5e4b !important;
+    box-shadow: 0 4px 8px rgba(55, 40, 30, 0.3) !important;
+}
+
+body.coffee-dark-theme .control-btn {
+    background: rgba(55, 40, 30, 0.7);
+    color: #e8d2c0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.4);
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+body.coffee-dark-theme .control-btn:hover {
+    background: rgba(70, 50, 40, 0.8);
+    box-shadow: 0 8px 20px -6px rgba(0, 0, 0, 0.6);
+}
+
+body.coffee-dark-theme .cell.drop-valid {
+    background: #3a5a4a !important;
+    box-shadow: 0 0 15px #2a4a3a !important;
+}
+
+body.coffee-dark-theme .cell.drop-invalid {
+    background: #5a3e3a !important;
+    box-shadow: 0 0 15px #4a2e2a !important;
+}
+
+body.coffee-dark-theme .draggable-block .cell.filled {
+    background: #7e5e4b !important;
+    box-shadow: 0 8px 16px rgba(45, 30, 25, 0.45) !important;
+}
+
+/* ████████ СВЕТЛО-КОФЕЙНАЯ ТЕМА (ЛАТТЕ) 🥛 ████████ */
+body.coffee-light-theme {
+    background: linear-gradient(145deg, #d9c8bc, #e3d2c6, #ecdbcf, #e3d2c6, #d9c8bc);
+    background-size: 500% 500%;
+    animation: coffeeLightWaves 18s ease infinite;
+}
+
+@keyframes coffeeLightWaves {
+    0% { background-position: 0% 20%; }
+    20% { background-position: 20% 80%; }
+    40% { background-position: 50% 30%; }
+    60% { background-position: 80% 70%; }
+    80% { background-position: 30% 90%; }
+    100% { background-position: 0% 20%; }
+}
+
+body.coffee-light-theme .game-container {
+    background: rgba(245, 235, 225, 0.7);
+    box-shadow: 0 20px 40px rgba(110, 75, 55, 0.15);
+}
+
+body.coffee-light-theme h1 {
+    color: #5e4a3e;
+    text-shadow: 2px 2px 4px rgba(80, 55, 40, 0.15), 0 0 10px rgba(150, 120, 100, 0.2);
+}
+
+body.coffee-light-theme .theme-btn {
+    background: rgba(190, 165, 150, 0.8);
+    color: #4a3a30;
+    box-shadow: 0 4px 8px rgba(80, 55, 40, 0.15);
+}
+
+body.coffee-light-theme .score-box {
+    background: rgba(200, 175, 160, 0.8);
+    box-shadow: 0 8px 18px -8px rgba(90, 65, 50, 0.2);
+}
+
+body.coffee-light-theme .score-label {
+    color: #5e4a3e;
+    text-shadow: 1px 1px 2px rgba(80, 55, 40, 0.1);
+}
+
+body.coffee-light-theme .score-value {
+    color: #3e2e24;
+    text-shadow: 2px 2px 4px rgba(60, 40, 30, 0.15), 0 0 8px rgba(140, 110, 90, 0.15);
+}
+
+body.coffee-light-theme .game-grid {
+    background: rgba(185, 160, 145, 0.3);
+}
+
+body.coffee-light-theme .cell {
+    background: #f0e2d8;
+    box-shadow: 0 2px 4px rgba(90, 65, 50, 0.1);
+}
+
+body.coffee-light-theme .cell.filled {
+    background: #9e7e6a;
+    box-shadow: 0 4px 8px rgba(90, 65, 50, 0.2);
+}
+
+body.coffee-light-theme h3 {
+    color: #5e4a3e;
+    text-shadow: 1px 1px 2px rgba(80, 55, 40, 0.1);
+}
+
+body.coffee-light-theme .block-preview .cell.filled {
+    background: #9e7e6a !important;
+    box-shadow: 0 4px 8px rgba(70, 50, 40, 0.2) !important;
+}
+
+body.coffee-light-theme .control-btn {
+    background: rgba(190, 165, 150, 0.8);
+    color: #4a3a30;
+    box-shadow: 0 4px 10px rgba(90, 65, 50, 0.15);
+    text-shadow: 1px 1px 2px rgba(255, 240, 230, 0.3);
+}
+
+body.coffee-light-theme .control-btn:hover {
+    background: rgba(175, 150, 135, 0.9);
+    box-shadow: 0 8px 20px -6px rgba(90, 65, 50, 0.25);
+}
+
+body.coffee-light-theme .cell.drop-valid {
+    background: #b8cfc0 !important;
+    box-shadow: 0 0 15px #98b8a8 !important;
+}
+
+body.coffee-light-theme .cell.drop-invalid {
+    background: #e0c8c0 !important;
+    box-shadow: 0 0 15px #d0b0a8 !important;
+}
+
+body.coffee-light-theme .draggable-block .cell.filled {
+    background: #9e7e6a !important;
+    box-shadow: 0 8px 16px rgba(60, 45, 35, 0.25) !important;
+}
+
+/* ████████ НОВАЯ СВЕТЛО-ГОЛУБАЯ ТЕМА (НЕБО) ☁️ ████████ */
+body.sky-theme {
+    background: linear-gradient(145deg, #b5d9ff, #c5e3ff, #d5ecff, #c5e3ff, #b5d9ff);
+    background-size: 500% 500%;
+    animation: skyWaves 20s ease infinite;
+    position: relative;
+}
+
+@keyframes skyWaves {
+    0% { background-position: 0% 20%; }
+    20% { background-position: 30% 80%; }
+    40% { background-position: 70% 40%; }
+    60% { background-position: 80% 70%; }
+    80% { background-position: 40% 90%; }
+    100% { background-position: 0% 20%; }
+}
+
+body.sky-theme .game-container {
+    background: rgba(240, 248, 255, 0.7);
+    box-shadow: 0 20px 40px rgba(100, 150, 200, 0.2);
+}
+
+body.sky-theme h1 {
+    color: #2a4a6a;
+    text-shadow: 2px 2px 4px rgba(40, 60, 90, 0.2), 0 0 15px rgba(120, 180, 240, 0.3);
+}
+
+body.sky-theme .theme-btn {
+    background: rgba(180, 215, 240, 0.8);
+    color: #1a3a55;
+    box-shadow: 0 4px 8px rgba(60, 100, 140, 0.2);
+}
+
+body.sky-theme .score-box {
+    background: rgba(200, 225, 245, 0.8);
+    box-shadow: 0 8px 18px -8px rgba(70, 120, 170, 0.2);
+}
+
+body.sky-theme .score-label {
+    color: #2a4a6a;
+    text-shadow: 1px 1px 2px rgba(40, 70, 100, 0.15);
+}
+
+body.sky-theme .score-value {
+    color: #0a2a45;
+    text-shadow: 2px 2px 4px rgba(20, 50, 80, 0.2), 0 0 10px rgba(100, 160, 220, 0.2);
+}
+
+body.sky-theme .game-grid {
+    background: rgba(190, 215, 235, 0.3);
+}
+
+body.sky-theme .cell {
+    background: #e6f0fa;
+    box-shadow: 0 2px 4px rgba(60, 100, 140, 0.1);
+}
+
+body.sky-theme .cell.filled {
+    background: #4d7ca1;
+    box-shadow: 0 4px 8px rgba(50, 80, 120, 0.3);
+}
+
+body.sky-theme h3 {
+    color: #2a4a6a;
+    text-shadow: 1px 1px 2px rgba(40, 70, 100, 0.15);
+}
+
+body.sky-theme .block-preview .cell.filled {
+    background: #4d7ca1 !important;
+    box-shadow: 0 4px 8px rgba(40, 70, 100, 0.25) !important;
+}
+
+body.sky-theme .control-btn {
+    background: rgba(180, 215, 240, 0.8);
+    color: #1a3a55;
+    box-shadow: 0 4px 10px rgba(70, 120, 170, 0.15);
+    text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.3);
+}
+
+body.sky-theme .control-btn:hover {
+    background: rgba(160, 200, 230, 0.9);
+    box-shadow: 0 8px 20px -6px rgba(70, 120, 170, 0.25);
+}
+
+body.sky-theme .cell.drop-valid {
+    background: #a8d0b0 !important;
+    box-shadow: 0 0 15px #88b898 !important;
+}
+
+body.sky-theme .cell.drop-invalid {
+    background: #e0b8b8 !important;
+    box-shadow: 0 0 15px #d0a0a0 !important;
+}
+
+body.sky-theme .draggable-block .cell.filled {
+    background: #4d7ca1 !important;
+    box-shadow: 0 8px 16px rgba(40, 70, 100, 0.3) !important;
+}
+
+body.sky-theme .floating-particle {
+    background: rgba(150, 200, 250, 0.2);
+}
+
+/* Плавающие частицы для всех тем */
+.floating-particle {
+    position: fixed;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 1;
+    animation: particleFloat linear infinite;
+}
+
+body.light-theme .floating-particle {
+    background: rgba(190, 130, 160, 0.3);
+}
+
+body.dark-theme .floating-particle {
+    background: rgba(150, 80, 235, 0.1);
+}
+
+body.coffee-dark-theme .floating-particle {
+    background: rgba(140, 100, 75, 0.15);
+}
+
+body.coffee-light-theme .floating-particle {
+    background: rgba(150, 120, 100, 0.2);
+}
+
+body.sky-theme .floating-particle {
+    background: rgba(150, 200, 250, 0.25);
+}
+
+@keyframes particleFloat {
+    0% { transform: translate(0, 0) scale(1); opacity: 0; }
+    10% { opacity: 0.3; }
+    30% { transform: translate(30px, -20px) scale(1.2); opacity: 0.25; }
+    50% { transform: translate(60px, 10px) scale(0.9); opacity: 0.35; }
+    70% { transform: translate(90px, -30px) scale(1.1); opacity: 0.2; }
+    90% { opacity: 0.25; }
+    100% { transform: translate(120px, 20px) scale(0.8); opacity: 0; }
+}
+
+/* Мобильная версия */
+@media (max-width: 700px) {
+    .game-container {
+        padding: 20px;
+        border-radius: 40px;
+        width: 100%;
+    }
+    
+    h1 {
+        font-size: 28px;
+    }
+    
+    .theme-buttons {
+        gap: 5px;
+    }
+    
+    .theme-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 18px;
+    }
+    
+    .score-container {
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    
+    .score-box {
+        padding: 15px 20px;
+        border-radius: 30px;
+    }
+    
+    .score-value {
+        font-size: 32px;
+    }
+    
+    .game-area {
+        flex-direction: column;
+        align-items: center;
+        gap: 20px;
+    }
+    
+    .game-grid {
+        width: 100%;
+        max-width: 340px;
+        height: auto;
+        aspect-ratio: 1;
+    }
+    
+    .blocks-panel {
+        width: 100%;
+        min-width: auto;
+    }
+    
+    .blocks-container {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 12px;
+    }
+    
+    .block-preview {
+        grid-template-columns: repeat(4, 30px);
+        grid-template-rows: repeat(4, 30px);
+    }
+    
+    .block-preview .cell {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+    }
+    
+    .control-btn {
+        padding: 14px 20px;
+        font-size: 15px;
+        min-height: 48px;
+    }
+    
+    .draggable-block {
+        grid-template-columns: repeat(4, 30px);
+        grid-template-rows: repeat(4, 30px);
+    }
+    
+    .draggable-block .cell {
+        width: 30px;
+        height: 30px;
+        border-radius: 6px;
+    }
+}
+
+@media (max-width: 400px) {
+    .game-container {
+        padding: 15px;
+    }
+    
+    h1 {
+        font-size: 24px;
+    }
+    
+    .theme-btn {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+    
+    .score-box {
+        padding: 12px 15px;
+    }
+    
+    .score-value {
+        font-size: 28px;
+    }
+    
+    .block-preview {
+        grid-template-columns: repeat(4, 26px);
+        grid-template-rows: repeat(4, 26px);
+    }
+    
+    .block-preview .cell {
+        width: 26px;
+        height: 26px;
+    }
+    
+    .draggable-block {
+        grid-template-columns: repeat(4, 26px);
+        grid-template-rows: repeat(4, 26px);
+    }
+    
+    .draggable-block .cell {
+        width: 26px;
+        height: 26px;
+    }
+}
